@@ -1,0 +1,13 @@
+{
+  "project_name": "cyberlabs-cicd-goat-duchess",
+  "slug": "cicd-goat-duchess",
+  "title": "Duchess: a leaked PyPI token",
+  "description": "A small Python package's repository once had its PyPI upload token committed by accident. The token was removed from the current branch but left behind in the git history, where anyone with read access can still recover it (OWASP CICD-SEC-6, Insufficient Credential Hygiene). Reproduces the \"Duchess\" challenge from CI/CD Goat.",
+  "category": "ci-cd",
+  "difficulty": 1,
+  "evidence_kind": "SECRET",
+  "capabilities": [
+    "scm-secret-scan-git-history"
+  ],
+  "question": "Recover the PyPI upload token leaked in the git history of the Wonderland/duchess repository."
+}

@@ -1,0 +1,10 @@
+# Never commit upload credentials again — the token belongs in CI secrets.
+.pypirc
+
+# Python build and cache artifacts.
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+.pytest_cache/

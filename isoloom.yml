@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://www.isoloom.com/schema/v1.json
+# Duchess (CI/CD Goat, CICD-SEC-6 Insufficient Credential Hygiene): a PyPI upload token is left
+# behind in the git history of the Wonderland/duchess repository. The current tip no longer holds
+# it, but a past commit does — anyone with read access can recover it. The player clones the repo,
+# browses its history and reads the leaked token. That token is the flag.
+#
+# ONE machine: a lightweight git server (nginx serving a bare repo over HTTP, the "dumb" protocol
+# — enough to clone and browse history). No Gitea, no Jenkins, no GitLab. See https://www.isoloom.com.
+version: 1
+name: cicd-goat-duchess
+
+networks:
+  lab: { cidr: 10.37.0.0/24 }
+
+# The per-player flag, issued by CyberCTF and handed to the lab by the launcher as a file (never an
+# environment value, so it never shows in `docker inspect`). Optional: an offline start (local, CI)
+# leaves it empty and the lab seeds its development placeholder instead, so the lab still comes up
+# and is solvable without a launcher.
+#   CTF_FLAG_DUCHESS  objective `duchess`  (SECRET: the leaked PyPI upload token)
+inputs:
+  CTF_FLAG_DUCHESS:
+    description: the leaked PyPI upload token (the Duchess flag), seeded into the repo's git history
+
+machines:
+  git:
+    # Container-only lab: its sole recipe is a Dockerfile, so `os` is not required.
+    app:
+      build: build/git
+    networks: { lab: 10 }
+    resources: { cpus: 1, memory_mb: 512 }
+    # The served bare repo lives on a named volume, shared with the setup job below so the history
+    # it builds is what nginx serves.
+    volumes: { repo: /srv/git }
+    # The git HTTP service. No `publish` number: `publish: true` asks the runner for a free host
+    # port it picks at `up` time (dynamic), so two labs never collide. The message reads the real
+    # URL back through `{{ ... .url }}`; nothing hard-codes a host port.
+    ports:
+      http: { port: 3000, protocol: http, publish: true }
+    # The per-player flag lands as a root-only file; only the seed script reads it.
+    files:
+      - { path: /run/lab/duchess, input: CTF_FLAG_DUCHESS }
+    # Once the git service answers: build the duchess repository's history into the served volume,
+    # with this player's token leaked in a past commit and removed at the tip. Reads the file above;
+    # nothing on the command line or in the environment. Runs in the machine's image, so it reads the
+    # repository's source files from the image and writes the bare repo onto the shared volume.
+    setup: [build/git/seed-history.sh]
+
+# From the player's side, on every target: a reachability check derived from the spec (the git HTTP
+# service answers and advertises refs), and the intended path as a solver that runs inside the git
+# machine — it clones the repo over HTTP and proves the token is recoverable from history (and gone
+# from the tip), but never prints it.
+checks:
+  - name: the duchess git repository advertises its refs over HTTP
+    http: http://git:3000/duchess.git/info/refs
+    wait: 1m
+  - name: the leaked PyPI token is recoverable from the repository history
+    from: git
+    exec: sh /usr/local/bin/duchess-solve
+
+# Shown when the lab is up.
+message: |
+  You have read access to Wonderland's **duchess** repository, a small Python package.
+  Clone it and look past its current state — mistakes were made in the past:
+
+  ```
+  git clone {{ machines.git.ports.http.url }}duchess.git
+  ```
+
+  The duchess guards her credentials carefully now, but a **PyPI upload token** was once committed
+  by accident and only removed later. Recover that token from the repository's git history.
