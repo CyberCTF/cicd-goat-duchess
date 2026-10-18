@@ -1,0 +1,68 @@
+name: Validate lab
+
+# The lab is its isoloom.yml (https://www.isoloom.com): on every PR and push to main, the spec
+# must be valid, the generated files under .isoloom/ current, the Docker edition must come up
+# and pass its checks (through the Isothrum runner), and every generated Vagrant and Terraform
+# output must be well formed.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  isoloom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the Isoloom CLI
+        run: cargo install isoloom@1.0.1
+      - run: isoloom validate
+      - name: Generated files are current (run `isoloom generate` and commit)
+        run: isoloom check
+
+  # Runs the lab for real (development evidence) through the Isothrum runner: it must come up
+  # healthy and pass its checks.
+  lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the Isoloom + Isothrum CLIs
+        run: cargo install isoloom@1.0.1 isothrum-cli@1.0.0
+      - run: isoloom generate --target docker
+      - name: Up, check, down (Docker)
+        run: |
+          set -euo pipefail
+          isothrum up . --target docker
+          isothrum check . --target docker
+      - name: Logs
+        if: failure()
+        run: docker compose -f .isoloom/docker/compose.yml --profile check logs --no-color 2>&1 | tail -500 || true
+      - name: Down
+        if: always()
+        run: isothrum down . --target docker || true
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+      - name: validate (Proxmox, every cloud)
+        run: |
+          for m in .isoloom/docker-vm/proxmox .isoloom/proxmox .isoloom/cloud-docker/* .isoloom/cloud-vm/*; do
+            [ -f "$m/main.tf" ] || continue
+            echo "== $m"
+            terraform -chdir="$m" init -backend=false -input=false >/dev/null
+            terraform -chdir="$m" validate
+          done
+
+  vagrant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vagrantfiles parse
+        run: for f in .isoloom/*/Vagrantfile; do ruby -c "$f"; done
