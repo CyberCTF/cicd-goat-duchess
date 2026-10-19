@@ -3,7 +3,7 @@
   "slug": "cicd-goat-duchess",
   "title": "Duchess: a leaked PyPI token",
   "description": "A small Python package's repository once had its PyPI upload token committed by accident. The token was removed from the current branch but left behind in the git history, where anyone with read access can still recover it (OWASP CICD-SEC-6, Insufficient Credential Hygiene). Reproduces the \"Duchess\" challenge from CI/CD Goat.",
-  "category": "ci-cd",
+  "category": "cicd",
   "difficulty": 1,
   "evidence_kind": "SECRET",
   "capabilities": [
