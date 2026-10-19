@@ -1,9 +1,9 @@
 name: Validate lab
 
-# The lab is its isoloom.yml (https://www.isoloom.com): on every PR and push to main, the spec
-# must be valid, the generated files under .isoloom/ current, the Docker edition must come up
-# and pass its checks (through the Isothrum runner), and every generated Vagrant and Terraform
-# output must be well formed.
+# The lab is its isoloom.yml (https://www.isoloom.com): on every PR and push to main the spec
+# must be valid, and the Docker edition must come up and pass its checks through the Isothrum
+# runner. Generated files under .isoloom/ are build output (regenerated on demand by the launcher
+# and in the job below), never committed, so nothing here reads a committed .isoloom/ tree.
 on:
   pull_request:
   push:
@@ -19,19 +19,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install the Isoloom CLI
         run: cargo install isoloom@1.0.1
-      - run: isoloom validate
-      - name: Generated files are current (run `isoloom generate` and commit)
-        run: isoloom check
+      - name: Spec is valid
+        run: isoloom validate
 
-  # Runs the lab for real (development evidence) through the Isothrum runner: it must come up
-  # healthy and pass its checks.
+  # Runs the lab for real (development evidence) through the Isothrum runner: with no flag input it
+  # comes up on the inert dev placeholder and must pass its checks, the full solver included.
   lab:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install the Isoloom + Isothrum CLIs
         run: cargo install isoloom@1.0.1 isothrum-cli@1.0.0
-      - run: isoloom generate --target docker
+      - name: Generate the Docker edition
+        run: isoloom generate --target docker
       - name: Up, check, down (Docker)
         run: |
           set -euo pipefail
@@ -43,26 +43,3 @@ jobs:
       - name: Down
         if: always()
         run: isothrum down . --target docker || true
-
-  terraform:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.16.5
-      - name: validate (Proxmox, every cloud)
-        run: |
-          for m in .isoloom/docker-vm/proxmox .isoloom/proxmox .isoloom/cloud-docker/* .isoloom/cloud-vm/*; do
-            [ -f "$m/main.tf" ] || continue
-            echo "== $m"
-            terraform -chdir="$m" init -backend=false -input=false >/dev/null
-            terraform -chdir="$m" validate
-          done
-
-  vagrant:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Vagrantfiles parse
-        run: for f in .isoloom/*/Vagrantfile; do ruby -c "$f"; done
