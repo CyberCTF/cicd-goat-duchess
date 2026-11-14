@@ -3,7 +3,7 @@
     {
       "key": "duchess",
       "title": "Duchess",
-      "prompt": "If everybody minded their own business, the world would go round a deal faster. Does that apply to your secrets as well? You have read access to the Wonderland/duchess repository, a small Python package. The Duchess cares about the security of her credentials — but there must be some PyPI token left somewhere. Clone the repository, look beyond its current state, and recover the leaked PyPI upload token. Submit the token exactly as it appears.",
+      "prompt": "Submit the PyPI upload token leaked in the git history of the Wonderland/duchess repository, exactly as it appears.",
       "check": { "evidence": "SECRET", "format": "%s" },
       "dev": "pypi-AgEIcHlwaS5vcmcCJGR1Y2hlc3MtZGV2LW9ubHktbm90LWEtcmVhbC1zZWNyZXQAAAACg",
       "capabilities": ["scm-secret-scan-git-history"],
